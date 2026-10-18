@@ -1,0 +1,11 @@
+{
+  "sugar":   {"price": 45,  "unit": "kg", "aliases": ["cheeni", "sakhar", "chini"]},
+  "rice":    {"price": 60,  "unit": "kg", "aliases": ["chawal", "tandul"]},
+  "wheat flour": {"price": 40, "unit": "kg", "aliases": ["atta", "gehu", "pith"]},
+  "cooking oil": {"price": 150, "unit": "l", "aliases": ["oil", "tel", "tail"]},
+  "milk":    {"price": 28,  "unit": "pkt", "aliases": ["doodh", "dudh"]},
+  "tea":     {"price": 90,  "unit": "pkt", "aliases": ["chai patti", "chai", "chaha"]},
+  "toor dal": {"price": 130, "unit": "kg", "aliases": ["dal", "daal", "varan"]},
+  "salt":    {"price": 22,  "unit": "kg", "aliases": ["namak", "meeth", "mith"]},
+  "eggs":    {"price": 84,  "unit": "dozen", "aliases": ["egg", "anda", "ande"]}
+}

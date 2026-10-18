@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orderly</title>
+<style>
+  :root{--bg:#faf7f2;--ink:#1d1b18;--mut:#6b655c;--card:#fff;--acc:#c2410c;--ok:#15803d;--line:#e7e1d6}
+  @media (prefers-color-scheme:dark){:root{--bg:#171512;--ink:#f3eee6;--mut:#a39b8e;--card:#201d19;--acc:#fb923c;--ok:#4ade80;--line:#35302a}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+  main{max-width:640px;margin:0 auto;padding:24px 16px 64px}
+  h1{font-size:28px;margin:0}p.sub{color:var(--mut);margin:4px 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;background:var(--bg);color:var(--ink)}
+  button{font:inherit;border:0;border-radius:8px;padding:10px 16px;cursor:pointer;background:var(--acc);color:#fff;margin:8px 8px 0 0}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.rec{background:#b91c1c}
+  table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .warn{color:var(--acc)}.tot{font-size:20px;font-weight:600}.mut{color:var(--mut);font-size:14px}
+  pre{white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:8px;margin:0}
+</style></head><body><main>
+<h1>Orderly</h1>
+<p class="sub">Voice note in, priced order out. Runs on this computer; nothing is uploaded.</p>
+<div class="card">
+  <textarea id="msg" placeholder="Type or speak: 2 kilo cheeni, 1 litre tel, adha kilo chai patti. Deliver to Mr. Patil"></textarea>
+  <button id="rec" class="ghost">Record voice note</button>
+  <button id="go">Make order</button>
+  <div id="status" class="mut"></div>
+</div>
+<div id="out"></div>
+<script>
+const $=id=>document.getElementById(id);
+let mr=null,chunks=[];
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+$('rec').onclick=async()=>{
+  if(mr&&mr.state==='recording'){mr.stop();return}
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({audio:true});
+    mr=new MediaRecorder(st);chunks=[];
+    mr.ondataavailable=e=>chunks.push(e.data);
+    mr.onstop=async()=>{
+      st.getTracks().forEach(t=>t.stop());$('rec').textContent='Record voice note';$('rec').classList.remove('rec');
+      $('status').textContent='Transcribing locally...';
+      const r=await fetch('/api/transcribe',{method:'POST',body:new Blob(chunks)});
+      const j=await r.json();
+      if(j.error){$('status').textContent=j.error;return}
+      $('msg').value=j.text;$('status').textContent='Transcribed. Check the text, then Make order.';
+    };
+    mr.start();$('rec').textContent='Stop recording';$('rec').classList.add('rec');
+  }catch(e){$('status').textContent='Microphone not available: '+e.message}
+};
+$('go').onclick=async()=>{
+  $('status').textContent='Reading the order...';
+  const r=await fetch('/api/order',{method:'POST',body:JSON.stringify({text:$('msg').value})});
+  const j=await r.json();
+  if(j.error){$('status').textContent=j.error;return}
+  $('status').textContent='Parsed with: '+j.method;
+  const inv=j.invoice;
+  let h='<div class="card"><b>'+esc(j.order.customer||'Customer not named')+'</b><table><tr><th>Item</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th></tr>';
+  for(const l of inv.lines)h+='<tr><td>'+esc(l.item)+'</td><td class="n">'+l.qty+' '+esc(l.unit||'')+'</td><td class="n">'+(l.price??'?')+'</td><td class="n">'+(l.amount??'?')+'</td></tr>';
+  h+='</table><p class="tot">Total: Rs '+inv.total+'</p>';
+  if(inv.review.length)h+='<p class="warn">Check these: '+inv.review.map(esc).join('; ')+'</p>';
+  h+='</div><div class="card"><div class="mut">Reply to send</div><pre>'+esc(j.reply)+'</pre>'
+   +'<a href="https://wa.me/?text='+encodeURIComponent(j.reply)+'" target="_blank"><button>Send on WhatsApp</button></a></div>';
+  $('out').innerHTML=h;
+};
+</script></main></body></html>
