@@ -17,7 +17,8 @@ Every evening between 6:30 and 8:30 PM, Ramesh's neighborhood grocery store gets
 
 [VIDEO LINK or embed, 60 to 90 seconds]
 
-[SCREENSHOT]
+![Orderly App Interface](screenshot.jpg)
+
 
 ## Code
 

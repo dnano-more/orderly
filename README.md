@@ -9,12 +9,14 @@ voice note -> faster-whisper (open source, local) -> Gemma via Ollama (local)
 
 Nothing is uploaded anywhere. Customer names, addresses and order history stay on the shop's computer.
 
+![Orderly Interface](screenshot.jpg)
+
 ## Run
 
 ```bash
-ollama pull gemma3:4b
+ollama pull gemma3:1b            # or gemma3:4b
 pip install faster-whisper      # only needed for voice
-python orderly.py               # open http://localhost:8000
+python orderly.py --model gemma3:1b   # open http://localhost:8000
 python orderly.py --offline     # rule-based parser, no model needed
 ```
 

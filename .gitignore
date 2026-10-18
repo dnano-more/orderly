@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 gh.exe
 *.exe
+PLAN.md
+VIDEO_SCRIPT.md
+
