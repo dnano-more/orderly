@@ -14,9 +14,9 @@ Nothing is uploaded anywhere. Customer names, addresses and order history stay o
 ## Run
 
 ```bash
-ollama pull gemma3:1b            # or gemma3:4b
+ollama pull gemma3:4b            # or gemma3:1b
 pip install faster-whisper      # only needed for voice
-python orderly.py --model gemma3:1b   # open http://localhost:8000
+python orderly.py               # open http://localhost:8000 (defaults to gemma3:4b)
 python orderly.py --offline     # rule-based parser, no model needed
 ```
 
