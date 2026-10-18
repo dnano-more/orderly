@@ -37,9 +37,9 @@ UNITS = {"kg": "kg", "kilo": "kg", "kilos": "kg", "kgs": "kg", "litre": "l", "li
          "ltr": "l", "l": "l", "packet": "pkt", "packets": "pkt", "pkt": "pkt",
          "dozen": "dozen", "gm": "g", "gram": "g", "grams": "g", "g": "g",
          "pcs": "pc", "piece": "pc", "pieces": "pc"}
-NUMWORDS = {"ek": 1, "one": 1, "do": 2, "two": 2, "teen": 3, "three": 3, "char": 4, "chaar": 4,
+NUMWORDS = {"ek": 1, "one": 1, "do": 2, "don": 2, "two": 2, "teen": 3, "three": 3, "char": 4, "chaar": 4,
             "four": 4, "paanch": 5, "panch": 5, "five": 5, "aadha": 0.5, "adha": 0.5,
-            "half": 0.5, "dus": 10, "ten": 10}
+            "half": 0.5, "dus": 10, "daha": 10, "ten": 10}
 
 
 # ---------- parsing ----------
@@ -57,12 +57,13 @@ def _num(tok: str):
 def parse_offline(text: str) -> dict:
     """Rule-based fallback: handles 'quantity [unit] item' lists. Rough on purpose."""
     customer, body = None, text
-    m = re.search(r"deliver(?:y)?\s+to\s+(.+)$", text, re.I | re.S)
+    m = re.search(r"(?:deliver(?:y)?\s+(?:to|at)|send\s+to)\s+(.+)$", text, re.I | re.S)
     if m:
         customer, body = m.group(1).strip(" ."), text[:m.start()]
     items = []
     for chunk in re.split(r"[,;\n]|\b(?:and|aur|ani)\b", body, flags=re.I):
-        toks = chunk.strip(" .").split()
+        c = re.sub(r"^(?:bhaiya|bhau|kaka|dada|hello|hi|please)\s+", "", chunk.strip(" ."), flags=re.I)
+        toks = c.split()
         if len(toks) < 2 or _num(toks[0]) is None:
             continue
         qty, rest, unit = _num(toks[0]), toks[1:], None
@@ -172,11 +173,10 @@ def transcribe(audio: bytes, model_size: str = "small") -> str:
         raise RuntimeError("Voice needs: pip install faster-whisper")
     if _whisper is None:
         _whisper = WhisperModel(model_size, compute_type="int8")
-    with tempfile.NamedTemporaryFile(suffix=".webm") as f:
-        f.write(audio)
-        f.flush()
-        segs, _ = _whisper.transcribe(f.name, task="transcribe", vad_filter=True)
-        return " ".join(s.text.strip() for s in segs)
+    import io
+    segs, _ = _whisper.transcribe(io.BytesIO(audio), task="transcribe", vad_filter=True)
+    return " ".join(s.text.strip() for s in segs)
+
 
 
 # ---------- web ----------

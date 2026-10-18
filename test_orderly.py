@@ -62,3 +62,15 @@ def test_http_roundtrip():
     assert j["invoice"]["total"] == 240.0 and "Total: Rs 240" in j["reply"]
     assert b"Orderly" in urllib.request.urlopen(f"http://127.0.0.1:{port}/").read()
     srv.shutdown()
+
+
+def test_transcribe_mock(monkeypatch):
+    class FakeSeg:
+        text = " 2 kilo sugar "
+    class FakeWhisper:
+        def transcribe(self, f, **kw):
+            return [FakeSeg()], None
+    monkeypatch.setattr(O, "_whisper", FakeWhisper())
+    res = O.transcribe(b"fake_audio")
+    assert res == "2 kilo sugar"
+
