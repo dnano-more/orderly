@@ -16,11 +16,12 @@ import json
 import re
 import tempfile
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).parent
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+
 
 PROMPT = """A customer sent a message ordering goods from a small shop. It may be in
 Hindi, Marathi, English or a mix, possibly written in Roman letters.
@@ -228,7 +229,8 @@ def main():
     ap.add_argument("--offline", action="store_true")
     a = ap.parse_args()
     print(f"Orderly on http://localhost:{a.port}  (model={'none' if a.offline else a.model})")
-    HTTPServer(("127.0.0.1", a.port), make_handler(a.model, a.offline)).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(a.model, a.offline)).serve_forever()
+
 
 
 if __name__ == "__main__":
