@@ -23,28 +23,31 @@ HERE = Path(__file__).parent
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
 
-PROMPT = """A customer sent an order message to a local grocery shop. It may be in Hindi, Marathi, English or Hinglish (Roman letters).
-Translate item names to English (e.g. cheeni/sakhar -> sugar, tel/tail -> cooking oil, chawal/tandul -> rice, atta/pith -> wheat flour, doodh/dudh -> milk, anda/ande -> eggs, chai/chaha -> tea, dal/varan -> toor dal, meeth/namak -> salt).
-Map number words: ek=1, do/don=2, teen=3, char=4, paanch=5, aadha=0.5, dus/daha=10.
-Keep dozen as dozen (e.g. "ek dozen" -> qty: 1, unit: "dozen", do not convert to 12).
-Do NOT invent extra items. Extract ONLY items explicitly in the message.
+PROMPT = """You are an accurate grocery order extractor for a shop in India.
+Read the customer's MESSAGE below and output JSON with the items and quantities explicitly stated in the MESSAGE.
+Do NOT invent items. Extract ONLY items explicitly requested in the MESSAGE.
+
+Rules:
+1. Translate Hindi/Marathi item names to English:
+   cheeni/sakhar/chini -> sugar
+   tel/tail/oil -> cooking oil
+   chawal/tandul/rice -> rice
+   atta/gehu/pith -> wheat flour
+   doodh/dudh/milk -> milk
+   anda/ande/egg/eggs -> eggs
+   chai/chaha/tea -> tea
+   dal/daal/varan -> toor dal
+   namak/meeth/salt -> salt
+2. Numbers in Hindi/Marathi/English:
+   "do" = 2 (Hindi word for two, NOT the English verb "do"!)
+   "don" = 2, "ek" = 1, "teen" = 3, "char" = 4, "paanch" = 5, "aadha" = 0.5, "dus" = 10.
+3. Keep dozen as unit: "ek dozen" -> qty: 1, unit: "dozen" (do not convert to 12).
+4. Customer name: if the customer says "deliver to [Name]", "[Name] ke ghar", "[Name] kade pathav", extract [Name] as "customer". Words like "pathav", "pathva", "bhej do" are verbs meaning "send", NOT names.
+
 Return ONLY valid JSON matching this schema:
 {{"customer": string or null,
 "items": [{{"name": string, "qty": number, "unit": "kg"|"g"|"l"|"pkt"|"dozen"|"pc"|null}}],
 "notes": string}}
-
-EXAMPLES:
-Order: "2 kilo sugar, 1 litre oil deliver to Mr. Patil"
-JSON: {{"customer": "Mr. Patil", "items": [{{"name": "sugar", "qty": 2, "unit": "kg"}}, {{"name": "cooking oil", "qty": 1, "unit": "l"}}], "notes": ""}}
-
-Order: "ek dozen anda aur teen packet doodh"
-JSON: {{"customer": null, "items": [{{"name": "eggs", "qty": 1, "unit": "dozen"}}, {{"name": "milk", "qty": 3, "unit": "pkt"}}], "notes": ""}}
-
-Order: "bhaiya do kilo cheeni aur adha kilo chai patti"
-JSON: {{"customer": null, "items": [{{"name": "sugar", "qty": 2, "unit": "kg"}}, {{"name": "tea", "qty": 0.5, "unit": "pkt"}}], "notes": ""}}
-
-Order: "don kilo tandul ani ek kilo varan pathva Patil kade"
-JSON: {{"customer": "Patil", "items": [{{"name": "rice", "qty": 2, "unit": "kg"}}, {{"name": "toor dal", "qty": 1, "unit": "kg"}}], "notes": ""}}
 
 MESSAGE:
 {text}
@@ -77,6 +80,10 @@ def parse_offline(text: str) -> dict:
     m = re.search(r"(?:deliver(?:y)?\s+(?:to|at)|send\s+to)\s+(.+)$", text, re.I | re.S)
     if m:
         customer, body = m.group(1).strip(" ."), text[:m.start()]
+    else:
+        m2 = re.search(r"(?:^|[\s,;])([A-Za-z]+)\s+(?:kade\s+(?:pathav|pathva)|ke\s+ghar)\b.*$", text, re.I)
+        if m2:
+            customer, body = m2.group(1).strip(" ."), text[:m2.start(1)] + " " + text[m2.end():]
     items = []
     for chunk in re.split(r"[,;\n]|\b(?:and|aur|ani)\b", body, flags=re.I):
         c = re.sub(r"^(?:bhaiya|bhau|kaka|dada|hello|hi|please)\s+", "", chunk.strip(" ."), flags=re.I)
@@ -110,12 +117,21 @@ def clean_order(data: dict) -> dict:
             qty = float(it["qty"])
             if not name or qty <= 0 or qty > 1000:
                 raise ValueError
-            unit = it.get("unit") if it.get("unit") in set(UNITS.values()) else None
+            raw_u = str(it.get("unit") or "").strip().lower()
+            unit = UNITS.get(raw_u, raw_u if raw_u in set(UNITS.values()) else None)
             items.append({"name": name, "qty": qty, "unit": unit})
         except (KeyError, TypeError, ValueError, AttributeError):
             rejected.append(it)
     cust = data.get("customer")
-    return {"customer": cust.strip() if isinstance(cust, str) and cust.strip() else None,
+    if isinstance(cust, str):
+        cust = cust.strip()
+        if cust.lower() in {"null", "none", "customer", "n/a", "unknown", ""}:
+            cust = None
+        else:
+            cust = re.sub(r"(?:\s+kade\s+(?:pathav|pathva)|\s+kade|\s+ke\s+ghar|\s+bhej\s+do)$", "", cust, flags=re.I).strip() or None
+    else:
+        cust = None
+    return {"customer": cust,
             "items": items, "rejected": rejected, "notes": str(data.get("notes") or "")[:200]}
 
 
