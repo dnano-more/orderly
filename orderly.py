@@ -23,28 +23,21 @@ HERE = Path(__file__).parent
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
 
-PROMPT = """You are an accurate grocery order extractor for a shop in India.
-Read the customer's MESSAGE below and output JSON with the items and quantities explicitly stated in the MESSAGE.
-Do NOT invent items. Extract ONLY items explicitly requested in the MESSAGE.
+PROMPT = """You are a grocery order extractor for shops in India.
+The customer's message contains an order with one or more items.
+Extract EVERY item mentioned into the "items" list.
 
 Rules:
-1. Translate Hindi/Marathi item names to English:
-   cheeni/sakhar/chini -> sugar
-   tel/tail/oil -> cooking oil
-   chawal/tandul/rice -> rice
-   atta/gehu/pith -> wheat flour
-   doodh/dudh/milk -> milk
-   anda/ande/egg/eggs -> eggs
-   chai/chaha/tea -> tea
-   dal/daal/varan -> toor dal
-   namak/meeth/salt -> salt
-2. Numbers in Hindi/Marathi/English:
-   "do" = 2 (Hindi word for two, NOT the English verb "do"!)
-   "don" = 2, "ek" = 1, "teen" = 3, "char" = 4, "paanch" = 5, "aadha" = 0.5, "dus" = 10.
-3. Keep dozen as unit: "ek dozen" -> qty: 1, unit: "dozen" (do not convert to 12).
-4. Customer name: if the customer says "deliver to [Name]", "[Name] ke ghar", "[Name] kade pathav", extract [Name] as "customer". Words like "pathav", "pathva", "bhej do" are verbs meaning "send", NOT names.
+1. Translate item names to English: cheeni/sakhar -> sugar, tel/tail/oil -> cooking oil, doodh/dudh -> milk, chawal/tandul -> rice, atta -> wheat flour, anda/ande -> eggs, chai/chaha -> tea, dal/varan -> toor dal, namak/meeth -> salt.
+2. Quantities: numbers like 1, 2, 3, or Hindi words: ek=1, do=2, don=2, teen=3, char=4, paanch=5, aadha=0.5. (Note: in Hindi "do" means 2, not the English verb).
+3. Units: kg, g, l, pkt, dozen, pc, or null.
+4. Customer: recipient name if mentioned (e.g. 'deliver to X', 'X ke ghar', 'X kade pathav'). If none, null.
 
-Return ONLY valid JSON matching this schema:
+Example:
+Message: "ek packet doodh aur do kilo chawal Sharma ji ke ghar"
+JSON: {{"customer": "Sharma ji", "items": [{{"name": "milk", "qty": 1, "unit": "pkt"}}, {{"name": "rice", "qty": 2, "unit": "kg"}}], "notes": ""}}
+
+Return strictly valid JSON:
 {{"customer": string or null,
 "items": [{{"name": string, "qty": number, "unit": "kg"|"g"|"l"|"pkt"|"dozen"|"pc"|null}}],
 "notes": string}}
