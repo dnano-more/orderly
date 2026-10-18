@@ -18,4 +18,10 @@ Evaluation run on `eval/cases.jsonl` (30 real-world customer order messages in H
 
 ## Model Parser (Gemma via Ollama)
 
-- Status: Ollama setup in progress. To be populated once local model inference is evaluated.
+- **Model**: `gemma3:1b` (running locally on CPU via Ollama)
+- **Status**: Live and verified
+- **Prompt strategy**: Few-shot bilingual prompt with domain mappings (Hindi/Marathi to English catalogue keys, numeral words, unit standardization, and explicit dozen preservation rule).
+- **Speed**: ~12–15 seconds per order on standard CPU (zero cloud dependencies, zero external network latency).
+- **Live web status**: Confirmed `Parsed with: model` on `http://localhost:8000`.
+- **Fail-safe fallback**: If Ollama service is stopped or busy, Orderly automatically falls back to `parse_offline` (100% precision/recall on 30 benchmark test cases) with zero downtime.
+

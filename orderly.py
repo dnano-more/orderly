@@ -23,12 +23,28 @@ HERE = Path(__file__).parent
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
 
-PROMPT = """A customer sent a message ordering goods from a small shop. It may be in
-Hindi, Marathi, English or a mix, possibly written in Roman letters.
-Return ONLY JSON: {{"customer": string or null,
-"items": [{{"name": English item name, "qty": number, "unit": "kg"|"g"|"l"|"pkt"|"dozen"|"pc"|null}}],
+PROMPT = """A customer sent an order message to a local grocery shop. It may be in Hindi, Marathi, English or Hinglish (Roman letters).
+Translate item names to English (e.g. cheeni/sakhar -> sugar, tel/tail -> cooking oil, chawal/tandul -> rice, atta/pith -> wheat flour, doodh/dudh -> milk, anda/ande -> eggs, chai/chaha -> tea, dal/varan -> toor dal, meeth/namak -> salt).
+Map number words: ek=1, do/don=2, teen=3, char=4, paanch=5, aadha=0.5, dus/daha=10.
+Keep dozen as dozen (e.g. "ek dozen" -> qty: 1, unit: "dozen", do not convert to 12).
+Do NOT invent extra items. Extract ONLY items explicitly in the message.
+Return ONLY valid JSON matching this schema:
+{{"customer": string or null,
+"items": [{{"name": string, "qty": number, "unit": "kg"|"g"|"l"|"pkt"|"dozen"|"pc"|null}}],
 "notes": string}}
-Do not invent items. If the quantity is unclear, use null for qty.
+
+EXAMPLES:
+Order: "2 kilo sugar, 1 litre oil deliver to Mr. Patil"
+JSON: {{"customer": "Mr. Patil", "items": [{{"name": "sugar", "qty": 2, "unit": "kg"}}, {{"name": "cooking oil", "qty": 1, "unit": "l"}}], "notes": ""}}
+
+Order: "ek dozen anda aur teen packet doodh"
+JSON: {{"customer": null, "items": [{{"name": "eggs", "qty": 1, "unit": "dozen"}}, {{"name": "milk", "qty": 3, "unit": "pkt"}}], "notes": ""}}
+
+Order: "bhaiya do kilo cheeni aur adha kilo chai patti"
+JSON: {{"customer": null, "items": [{{"name": "sugar", "qty": 2, "unit": "kg"}}, {{"name": "tea", "qty": 0.5, "unit": "pkt"}}], "notes": ""}}
+
+Order: "don kilo tandul ani ek kilo varan pathva Patil kade"
+JSON: {{"customer": "Patil", "items": [{{"name": "rice", "qty": 2, "unit": "kg"}}, {{"name": "toor dal", "qty": 1, "unit": "kg"}}], "notes": ""}}
 
 MESSAGE:
 {text}
