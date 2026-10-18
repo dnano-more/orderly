@@ -28,24 +28,53 @@
 <div id="out"></div>
 <script>
 const $=id=>document.getElementById(id);
-let mr=null,chunks=[];
+let mr=null,chunks=[],recTimer=null,recSec=0;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 $('rec').onclick=async()=>{
   if(mr&&mr.state==='recording'){mr.stop();return}
   try{
     const st=await navigator.mediaDevices.getUserMedia({audio:true});
-    mr=new MediaRecorder(st);chunks=[];
-    mr.ondataavailable=e=>chunks.push(e.data);
+    const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'';
+    mr=mime?new MediaRecorder(st,{mimeType:mime}):new MediaRecorder(st);
+    chunks=[];
+    mr.ondataavailable=e=>{if(e.data&&e.data.size>0)chunks.push(e.data)};
+    recSec=0;
+    $('rec').textContent='⏹ Stop recording (0s)';
+    $('rec').classList.add('rec');
+    $('status').textContent='🔴 Listening... speak your order now';
+    recTimer=setInterval(()=>{
+      recSec++;
+      $('rec').textContent='⏹ Stop recording ('+recSec+'s)';
+    },1000);
     mr.onstop=async()=>{
-      st.getTracks().forEach(t=>t.stop());$('rec').textContent='Record voice note';$('rec').classList.remove('rec');
-      $('status').textContent='Transcribing locally...';
-      const r=await fetch('/api/transcribe',{method:'POST',body:new Blob(chunks)});
-      const j=await r.json();
-      if(j.error){$('status').textContent=j.error;return}
-      $('msg').value=j.text;$('status').textContent='Transcribed. Check the text, then Make order.';
+      clearInterval(recTimer);
+      st.getTracks().forEach(t=>t.stop());
+      $('rec').textContent='Record voice note';
+      $('rec').classList.remove('rec');
+      if(!chunks.length){
+        $('status').textContent='No audio was captured. Please try recording again.';
+        return;
+      }
+      $('status').textContent='Transcribing audio with Whisper locally...';
+      try{
+        const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});
+        const r=await fetch('/api/transcribe',{method:'POST',body:blob});
+        const j=await r.json();
+        if(j.error){$('status').textContent='Error: '+j.error;return}
+        if(j.text&&j.text.trim()){
+          $('msg').value=j.text.trim();
+          $('status').textContent='Transcribed! Check the text above, then click "Make order".';
+        }else{
+          $('status').textContent='No speech detected. Please speak closer or louder and try again.';
+        }
+      }catch(err){
+        $('status').textContent='Transcription request failed: '+err.message;
+      }
     };
-    mr.start();$('rec').textContent='Stop recording';$('rec').classList.add('rec');
-  }catch(e){$('status').textContent='Microphone not available: '+e.message}
+    mr.start(250);
+  }catch(e){
+    $('status').textContent='Microphone error: '+e.message+' (Please grant microphone permission in your browser)';
+  }
 };
 $('go').onclick=async()=>{
   $('status').textContent='Reading the order...';

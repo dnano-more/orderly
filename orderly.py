@@ -138,7 +138,7 @@ def clean_order(data: dict) -> dict:
 # ---------- pricing ----------
 
 def load_catalogue() -> dict:
-    return json.loads((HERE / "catalogue.json").read_text())
+    return json.loads((HERE / "catalogue.json").read_text(encoding="utf-8"))
 
 
 def match_item(name: str, catalogue: dict):
@@ -198,8 +198,10 @@ def handle_order(text: str, model: str, offline: bool) -> dict:
 _whisper = None
 
 
-def transcribe(audio: bytes, model_size: str = "tiny") -> str:
+def transcribe(audio: bytes, model_size: str = "base") -> str:
     global _whisper
+    if not audio:
+        return ""
     try:
         import av
         if not hasattr(av, "_patched_metadata"):
@@ -215,7 +217,7 @@ def transcribe(audio: bytes, model_size: str = "tiny") -> str:
     if _whisper is None:
         _whisper = WhisperModel(model_size, compute_type="int8")
     import io
-    segs, _ = _whisper.transcribe(io.BytesIO(audio), task="transcribe", vad_filter=True)
+    segs, _ = _whisper.transcribe(io.BytesIO(audio), task="transcribe", vad_filter=False, beam_size=5)
     return " ".join(s.text.strip() for s in segs)
 
 
@@ -223,7 +225,7 @@ def transcribe(audio: bytes, model_size: str = "tiny") -> str:
 
 # ---------- web ----------
 
-PAGE = (HERE / "index.html").read_text() if (HERE / "index.html").exists() else "<h1>index.html missing</h1>"
+PAGE = (HERE / "index.html").read_text(encoding="utf-8") if (HERE / "index.html").exists() else "<h1>index.html missing</h1>"
 
 
 def make_handler(model: str, offline: bool):
@@ -238,7 +240,7 @@ def make_handler(model: str, offline: bool):
 
         def do_GET(self):
             if self.path == "/":
-                self._send(200, (HERE / "index.html").read_text(), "text/html; charset=utf-8")
+                self._send(200, (HERE / "index.html").read_text(encoding="utf-8"), "text/html; charset=utf-8")
             elif self.path == "/api/catalogue":
                 self._send(200, json.dumps(load_catalogue()))
             else:

@@ -18,7 +18,7 @@ def main():
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--cases", default="eval/cases.jsonl")
     a = ap.parse_args()
-    cases = [json.loads(l) for l in Path(a.cases).read_text().splitlines() if l.strip()]
+    cases = [json.loads(l) for l in Path(a.cases).read_text(encoding="utf-8").splitlines() if l.strip()]
     tp = fp = fn = exact = 0
     for c in cases:
         r = O.handle_order(c["text"], a.model, a.offline)
