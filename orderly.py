@@ -182,9 +182,17 @@ def handle_order(text: str, model: str, offline: bool) -> dict:
 _whisper = None
 
 
-def transcribe(audio: bytes, model_size: str = "small") -> str:
+def transcribe(audio: bytes, model_size: str = "tiny") -> str:
     global _whisper
     try:
+        import av
+        if not hasattr(av, "_patched_metadata"):
+            _orig_open = av.open
+            def _safe_av_open(*a, **kw):
+                kw.pop("metadata_errors", None)
+                return _orig_open(*a, **kw)
+            av.open = _safe_av_open
+            av._patched_metadata = True
         from faster_whisper import WhisperModel
     except ImportError:
         raise RuntimeError("Voice needs: pip install faster-whisper")
@@ -193,6 +201,7 @@ def transcribe(audio: bytes, model_size: str = "small") -> str:
     import io
     segs, _ = _whisper.transcribe(io.BytesIO(audio), task="transcribe", vad_filter=True)
     return " ".join(s.text.strip() for s in segs)
+
 
 
 
